@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sopa de Letras · Estrategias de Negociación</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/space-grotesk@latest/latin-700-normal.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg1: #0f172a;
+    --bg2: #1e293b;
+    --accent: #6366f1;
+    --accent2: #ec4899;
+    --accent3: #10b981;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --cell: #1e293b;
+    --cell-hover: #334155;
+    --found: #10b981;
+  }
+  html, body {
+    min-height: 100vh;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--text);
+    background: radial-gradient(ellipse at top, #1e1b4b 0%, #0f172a 50%, #020617 100%);
+    overflow-x: hidden;
+  }
+  body {
+    padding: 24px 16px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  header {
+    text-align: center;
+    max-width: 800px;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    background: linear-gradient(135deg, #818cf8, #ec4899, #f59e0b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  header p {
+    color: var(--muted);
+    font-size: clamp(0.85rem, 2vw, 1rem);
+    line-height: 1.5;
+  }
+  .stats {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 16px 0 20px;
+  }
+  .stat {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    backdrop-filter: blur(10px);
+  }
+  .stat strong {
+    color: var(--accent2);
+    font-weight: 700;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
+  }
+  @media (min-width: 900px) {
+    .app { grid-template-columns: minmax(0, 1fr) 320px; }
+  }
+  .grid-wrap {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 16px;
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(15, 1fr);
+    gap: 3px;
+    user-select: none;
+    touch-action: none;
+    aspect-ratio: 1 / 1;
+  }
+  .cell {
+    background: var(--cell);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: clamp(0.7rem, 2.2vw, 1.1rem);
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s, color 0.15s;
+    color: var(--text);
+    position: relative;
+  }
+  .cell:hover { background: var(--cell-hover); }
+  .cell.selecting {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    transform: scale(1.08);
+    z-index: 2;
+  }
+  .cell.found {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    animation: pop 0.4s ease;
+  }
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
+  .panel {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+    height: fit-content;
+  }
+  .panel h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.2rem;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+  .panel .sub {
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-bottom: 16px;
+  }
+  .word-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .word-list li {
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .word-list li.found {
+    background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.1));
+    border-color: var(--found);
+    color: var(--found);
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+  }
+  .word-list li.found::after {
+    content: '✓';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  button {
+    flex: 1;
+    min-width: 120px;
+    padding: 11px 16px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    color: white;
+    box-shadow: 0 4px 14px rgba(99,102,241,0.3);
+  }
+  .btn-secondary {
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  button:hover { transform: translateY(-2px); }
+  button:active { transform: translateY(0); }
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 14px 24px;
+    border-radius: 14px;
+    font-weight: 700;
+    box-shadow: 0 10px 30px rgba(16,185,129,0.4);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .win-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+  .win-overlay.show { opacity: 1; pointer-events: all; }
+  .win-card {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 40px;
+    border-radius: 24px;
+    text-align: center;
+    max-width: 420px;
+    transform: scale(0.8);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .win-overlay.show .win-card { transform: scale(1); }
+  .win-card h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 2rem;
+    background: linear-gradient(135deg, #10b981, #f59e0b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 10px;
+  }
+  .win-card p { color: var(--muted); margin-bottom: 20px; }
+  .emoji { font-size: 3rem; margin-bottom: 10px; display: block; }
+  .timer-display { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🤝 Sopa de Letras · Estrategias de Negociación</h1>
+  <p>Encuentra las palabras clave del arte de negociar. Arrastra sobre las letras para seleccionarlas en cualquier dirección.</p>
+</header>
+
+<div class="stats">
+  <div class="stat">Encontradas: <strong id="foundCount">0</strong> / <strong id="totalCount">0</strong></div>
+  <div class="stat">Tiempo: <strong id="timer" class="timer-display">00:00</strong></div>
+  <div class="stat">Intentos: <strong id="attempts">0</strong></div>
+</div>
+
+<div class="app">
+  <div class="grid-wrap">
+    <div class="grid" id="grid"></div>
+  </div>
+  <aside class="panel">
+    <h2>📋 Palabras a encontrar</h2>
+    <p class="sub">Marca cada estrategia mientras la descubres</p>
+    <ul class="word-list" id="wordList"></ul>
+    <div class="controls">
+      <button class="btn-primary" id="newGameBtn">🔄 Nueva partida</button>
+      <button class="btn-secondary" id="hintBtn">💡 Pista</button>
+    </div>
+  </aside>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="win-overlay" id="winOverlay">
+  <div class="win-card">
+    <span class="emoji">🏆</span>
+    <h2>¡Negociación exitosa!</h2>
+    <p id="winText">Has encontrado todas las estrategias. Eres un maestro negociador.</p>
+    <button class="btn-primary" id="playAgainBtn">Jugar de nuevo</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const SIZE = 15;
+  const WORDS = [
+    { word: 'GANARGANAR', tip: 'Beneficio mutuo' },
+    { word: 'CONCESION', tip: 'Ceder algo' },
+    { word: 'EMPATIA', tip: 'Comprender al otro' },
+    { word: 'ANCLAJE', tip: 'Primer número' },
+    { word: 'ESCUCHAR', tip: 'Oír activamente' },
+    { word: 'CONFLICTO', tip: 'Desacuerdo' },
+    { word: 'ACUERDO', tip: 'Pacto final' },
+    { word: 'PROPUESTA', tip: 'Oferta formal' },
+    { word: 'MEDIACION', tip: 'Tercero neutral' },
+    { word: 'DIALOGO', tip: 'Conversación' },
+    { word: 'CONSENSO', tip: 'Acuerdo grupal' },
+    { word: 'OFERTA', tip: 'Propuesta inicial' },
+    { word: 'PODER', tip: 'Capacidad de influencia' },
+    { word: 'TACTICA', tip: 'Maniobra' },
+    { word: 'CONFIANZA', tip: 'Fe en el otro' },
+    { word: 'PERSUASION', tip: 'Convencer' },
+    { word: 'COOPERAR', tip: 'Trabajar juntos' },
+    { word: 'BATNA', tip: 'Mejor alternativa' }
+  ];
+
+  const DIRS = [
+    [1,0], [-1,0], [0,1], [0,-1],
+    [1,1], [-1,-1], [1,-1], [-1,1]
+  ];
+
+  const COLORS = ['#10b981','#6366f1','#ec4899','#f59e0b','#06b6d4','#8b5cf6','#ef4444','#14b8a6'];
+
+  let grid = [];
+  let placements = {}; // word -> [{r,c}, ...]
+  let foundWords = new Set();
+  let selecting = false;
+  let startCell = null;
+  let currentPath = [];
+  let attempts = 0;
+  let timerInterval = null;
+  let startTime = 0;
+  let elapsed = 0;
+
+  const gridEl = document.getElementById('grid');
+  const wordListEl = document.getElementById('wordList');
+  const foundCountEl = document.getElementById('foundCount');
+  const totalCountEl = document.getElementById('totalCount');
+  const timerEl = document.getElementById('timer');
+  const attemptsEl = document.getElementById('attempts');
+  const toastEl = document.getElementById('toast');
+  const winOverlay = document.getElementById('winOverlay');
+  const winText = document.getElementById('winText');
+
+  function initGrid() {
+    grid = Array.from({length: SIZE}, () => Array(SIZE).fill(''));
+    placements = {};
+  }
+
+  function canPlace(word, r, c, dr, dc) {
+    for (let i = 0; i < word.length; i++) {
+      const nr = r + i * dr;
+      const nc = c + i * dc;
+      if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) return false;
+      if (grid[nr][nc] !== '' && grid[nr][nc] !== word[i]) return false;
+    }
+    return true;
+  }
+
+  function placeWord(word) {
+    const shuffledDirs = [...DIRS].sort(() => Math.random() - 0.5);
+    for (let tries = 0; tries < 200; tries++) {
+      const dir = shuffledDirs[tries % shuffledDirs.length];
+      const r = Math.floor(Math.random() * SIZE);
+      const c = Math.floor(Math.random() * SIZE);
+      if (canPlace(word, r, c, dir[0], dir[1])) {
+        const cells = [];
+        for (let i = 0; i < word.length; i++) {
+          const nr = r + i * dir[0];
+          const nc = c + i * dir[1];
+          grid[nr][nc] = word[i];
+          cells.push({r: nr, c: nc});
+        }
+        return cells;
+      }
+    }
+    return null;
+  }
+
+  function fillEmpty() {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (grid[r][c] === '') {
+          grid[r][c] = letters[Math.floor(Math.random() * letters.length)];
+        }
+      }
+    }
+  }
+
+  function buildGame() {
+    initGrid();
+    // Shuffle words, place longest first for better fit
+    const sorted = [...WORDS].sort((a,b) => b.word.length - a.word.length);
+    const placedWords = [];
+    for (const item of sorted) {
+      const cells = placeWord(item.word);
+      if (cells) {
+        placements[item.word] = cells;
+        placedWords.push(item);
+      }
+    }
+    fillEmpty();
+    return placedWords;
+  }
+
+  function renderGrid() {
+    gridEl.innerHTML = '';
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.textContent = grid[r][c];
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        gridEl.appendChild(cell);
+      }
+    }
+  }
+
+  function renderWordList(words) {
+    wordListEl.innerHTML = '';
+    words.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = item.word;
+      li.dataset.word = item.word;
+      li.title = item.tip;
+      wordListEl.appendChild(li);
+    });
+  }
+
+  function getCell(r, c) {
+    return gridEl.children[r * SIZE + c];
+  }
+
+  function clearSelecting() {
+    gridEl.querySelectorAll('.cell.selecting').forEach(c => c.classList.remove('selecting'));
+  }
+
+  function getLineCells(r1, c1, r2, c2) {
+    const dr = Math.sign(r2 - r1);
+    const dc = Math.sign(c2 - c1);
+    const lenR = Math.abs(r2 - r1);
+    const lenC = Math.abs(c2 - c1);
+    // Must be straight line (horizontal, vertical, or 45° diagonal)
+    if (lenR !== 0 && lenC !== 0 && lenR !== lenC) return null;
+    const len = Math.max(lenR, lenC);
+    const cells = [];
+    for (let i = 0; i <= len; i++) {
+      cells.push({r: r1 + i * dr, c: c1 + i * dc});
+    }
+    return cells;
+  }
+
+  function updateSelection(endR, endC) {
+    clearSelecting();
+    if (!startCell) return;
+    const path = getLineCells(startCell.r, startCell.c, endR, endC);
+    if (!path) return;
+    currentPath = path;
+    path.forEach(p => {
+      const cell = getCell(p.r, p.c);
+      if (cell) cell.classList.add('selecting');
+    });
+  }
+
+  function checkSelection() {
+    if (currentPath.length < 2) return;
+    const selected = currentPath.map(p => grid[p.r][p.c]).join('');
+    const reversed = selected.split('').reverse().join('');
+    attempts++;
+    attemptsEl.textContent = attempts;
+
+    let matchedWord = null;
+    for (const w of Object.keys(placements)) {
+      if (w === selected || w === reversed) {
+        matchedWord = w;
+        break;
+      }
+    }
+
+    if (matchedWord && !foundWords.has(matchedWord)) {
+      foundWords.add(matchedWord);
+      const colorIdx = foundWords.size % COLORS.length;
+      currentPath.forEach(p => {
+        const cell = getCell(p.r, p.c);
+        cell.classList.remove('selecting');
+        cell.classList.add('found');
+        cell.style.background = `linear-gradient(135deg, ${COLORS[colorIdx]}, ${COLORS[(colorIdx+1)%COLORS.length]})`;
+      });
+      const li = wordListEl.querySelector(`[data-word="${matchedWord}"]`);
+      if (li) li.classList.add('found');
+      foundCountEl.textContent = foundWords.size;
+      showToast(`¡Encontraste ${matchedWord}! 🎯`);
+      if (foundWords.size === Object.keys(placements).length) {
+        setTimeout(showWin, 600);
+      }
+    } else {
+      clearSelecting();
+    }
+    currentPath = [];
+  }
+
+  function getCellFromEvent(e) {
+    const touch = e.touches ? e.touches[0] : e;
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (el && el.classList.contains('cell')) {
+      return { r: +el.dataset.r, c: +el.dataset.c };
+    }
+    return null;
+  }
+
+  function onPointerDown(e) {
+    e.preventDefault();
+    const cell = getCellFromEvent(e);
+    if (!cell) return;
+    selecting = true;
+    startCell = cell;
+    currentPath = [cell];
+    updateSelection(cell.r, cell.c);
+  }
+
+  function onPointerMove(e) {
+    if (!selecting) return;
+    e.preventDefault();
+    const cell = getCellFromEvent(e);
+    if (!cell) return;
+    updateSelection(cell.r, cell.c);
+  }
+
+  function onPointerUp(e) {
+    if (!selecting) return;
+    selecting = false;
+    checkSelection();
+    startCell = null;
+  }
+
+  gridEl.addEventListener('mousedown', onPointerDown);
+  gridEl.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('mouseup', onPointerUp);
+  gridEl.addEventListener('touchstart', onPointerDown, { passive: false });
+  gridEl.addEventListener('touchmove', onPointerMove, { passive: false });
+  window.addEventListener('touchend', onPointerUp);
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 2000);
+  }
+
+  function showWin() {
+    stopTimer();
+    const timeStr = timerEl.textContent;
+    winText.textContent = `Encontraste todas las estrategias en ${timeStr} con ${attempts} intentos. ¡Eres un maestro negociador!`;
+    winOverlay.classList.add('show');
+  }
+
+  function startTimer() {
+    stopTimer();
+    startTime = Date.now();
+    elapsed = 0;
+    timerEl.textContent = '00:00';
+    timerInterval = setInterval(() => {
+      elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const m = String(Math.floor(elapsed / 60)).padStart(2,'0');
+      const s = String(elapsed % 60).padStart(2,'0');
+      timerEl.textContent = `${m}:${s}`;
+    }, 500);
+  }
+
+  function stopTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  function giveHint() {
+    const remaining = Object.keys(placements).filter(w => !foundWords.has(w));
+    if (remaining.length === 0) return;
+    const word = remaining[Math.floor(Math.random() * remaining.length)];
+    const cells = placements[word];
+    // Highlight first and last cell briefly
+    const first = cells[0];
+    const last = cells[cells.length - 1];
+    [first, last].forEach(p => {
+      const cell = getCell(p.r, p.c);
+      const original = cell.style.background;
+      cell.style.background = 'linear-gradient(135deg, #f59e0b, #f97316)';
+      cell.style.transform = 'scale(1.2)';
+      setTimeout(() => {
+        cell.style.background = original;
+        cell.style.transform = '';
+      }, 1500);
+    });
+    showToast(`💡 Busca: ${word}`);
+  }
+
+  function newGame() {
+    foundWords.clear();
+    attempts = 0;
+    attemptsEl.textContent = 0;
+    winOverlay.classList.remove('show');
+    const placed = buildGame();
+    renderGrid();
+    renderWordList(placed);
+    totalCountEl.textContent = Object.keys(placements).length;
+    foundCountEl.textContent = 0;
+    startTimer();
+  }
+
+  document.getElementById('newGameBtn').addEventListener('click', newGame);
+  document.getElementById('playAgainBtn').addEventListener('click', newGame);
+  document.getElementById('hintBtn').addEventListener('click', giveHint);
+
+  // Prevent context menu on long press
+  gridEl.addEventListener('contextmenu', e => e.preventDefault());
+
+  newGame();
+})();
+</script>
+
+</body>
+</html>
